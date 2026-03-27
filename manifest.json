@@ -1,0 +1,16 @@
+{
+    "name": "Dial-up Simulator 2000",
+    "short_name": "Dial-up",
+    "description": "2000年代のダイアルアップ接続を追体験するアプリ",
+    "start_url": "./index.html",
+    "display": "standalone",
+    "background_color": "#0a0a0a",
+    "theme_color": "#00ff41",
+    "icons": [
+        {
+            "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='black'/><text x='50' y='320' font-family='monospace' font-size='200' fill='%2300ff41'>56k</text></svg>",
+            "sizes": "512x512",
+            "type": "image/svg+xml"
+        }
+    ]
+}

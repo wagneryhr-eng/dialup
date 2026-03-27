@@ -1,0 +1,435 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>接続 - ダイヤルアップ ネットワーク</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        :root {
+            --win-gray: #c0c0c0;
+            --win-white: #ffffff;
+            --win-dark-gray: #808080;
+            --win-black: #000000;
+            --win-title-blue: linear-gradient(90deg, #000080 0%, #08216b 100%);
+            --desktop-teal: #008080;
+        }
+
+        * {
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            font-family: 'MS UI Gothic', 'MS PGothic', 'Yu Gothic', sans-serif;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            background-color: var(--desktop-teal);
+            overflow: hidden;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* CRT Overlay (Softened for Windows UI) */
+        .crt-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.05) 50%);
+            background-size: 100% 2px;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        /* Classic Windows Window */
+        .window {
+            width: 340px;
+            background-color: var(--win-gray);
+            border: 2px solid;
+            border-color: var(--win-white) var(--win-dark-gray) var(--win-dark-gray) var(--win-white);
+            box-shadow: 1px 1px 0px var(--win-black);
+            padding: 2px;
+            position: relative;
+            z-index: 50;
+        }
+
+        .title-bar {
+            background: var(--win-title-blue);
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 4px;
+            margin-bottom: 8px;
+        }
+
+        .title-text {
+            color: white;
+            font-size: 12px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+        }
+
+        .title-icon {
+            width: 14px;
+            height: 14px;
+            margin-right: 4px;
+            background-color: white; /* Placeholder icon */
+            display: inline-block;
+        }
+
+        .close-btn {
+            width: 16px;
+            height: 14px;
+            background-color: var(--win-gray);
+            border: 1px solid;
+            border-color: var(--win-white) var(--win-dark-gray) var(--win-dark-gray) var(--win-white);
+            font-size: 9px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+        }
+
+        /* Content Area */
+        .content {
+            padding: 10px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .status-section {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            font-size: 12px;
+        }
+
+        .icon-area {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modem-icon {
+            width: 42px;
+            height: 38px;
+            background: #eee;
+            border: 1px solid #888;
+            position: relative;
+        }
+
+        .status-text-area {
+            flex: 1;
+            font-size: 13px;
+            color: var(--win-black);
+            line-height: 1.4;
+        }
+
+        .progress-bar-container {
+            width: 100%;
+            height: 18px;
+            background: #eee;
+            border: 1px solid;
+            border-color: var(--win-dark-gray) var(--win-white) var(--win-white) var(--win-dark-gray);
+            padding: 1px;
+            display: none;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            width: 0%;
+            background-color: #000080;
+            transition: width 0.1s linear;
+        }
+
+        /* Input styling */
+        .info-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .label { min-width: 80px; }
+        .input-box {
+            flex: 1;
+            height: 18px;
+            background: white;
+            border: 1px solid;
+            border-color: var(--win-dark-gray) var(--win-white) var(--win-white) var(--win-dark-gray);
+            padding: 0 4px;
+            font-size: 12px;
+        }
+
+        /* Button group */
+        .btn-group {
+            display: flex;
+            justify-content: flex-end;
+            gap: 6px;
+            margin-top: 4px;
+        }
+
+        .win-btn {
+            min-width: 75px;
+            height: 23px;
+            background-color: var(--win-gray);
+            border: 1px solid;
+            border-color: var(--win-white) var(--win-dark-gray) var(--win-dark-gray) var(--win-white);
+            box-shadow: 1px 1px 0px var(--win-black);
+            font-size: 12px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .win-btn:active {
+            border-color: var(--win-dark-gray) var(--win-white) var(--win-white) var(--win-dark-gray);
+            box-shadow: none;
+            padding: 1px 0 0 1px;
+        }
+
+        .win-btn:disabled {
+            color: var(--win-dark-gray);
+            cursor: default;
+        }
+
+        /* Connected View */
+        .connected-view {
+            display: none;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .connected-stats {
+            background: white;
+            border: 1px solid var(--win-dark-gray);
+            padding: 10px;
+            margin: 10px 0;
+            text-align: left;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="crt-overlay"></div>
+
+    <!-- Login Window -->
+    <div id="login-window" class="window">
+        <div class="title-bar">
+            <div class="title-text">
+                <span class="title-icon"></span>
+                接続
+            </div>
+            <div class="close-btn">×</div>
+        </div>
+        <div class="content">
+            <div class="info-row">
+                <div class="label">ユーザー名(U):</div>
+                <div class="input-box">guest</div>
+            </div>
+            <div class="info-row">
+                <div class="label">パスワード(P):</div>
+                <div class="input-box">********</div>
+            </div>
+            <div class="info-row">
+                <div class="label">保存(S):</div>
+                <input type="checkbox" checked disabled>
+            </div>
+            <hr style="width: 100%; border: 0; border-top: 1px solid #808080; border-bottom: 1px solid white; margin: 0;">
+            <div class="info-row">
+                <div class="label">電話番号(T):</div>
+                <div class="input-box">03-XXXX-XXXX</div>
+            </div>
+            <div class="btn-group">
+                <button id="connect-btn" class="win-btn">接続(C)</button>
+                <button class="win-btn">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connecting Window -->
+    <div id="connecting-window" class="window hidden">
+        <div class="title-bar">
+            <div class="title-text">
+                <span class="title-icon"></span>
+                接続中...
+            </div>
+            <div class="close-btn">×</div>
+        </div>
+        <div class="content">
+            <div class="status-section">
+                <div class="icon-area">
+                    <!-- Animation area -->
+                    <svg width="40" height="40" viewBox="0 0 40 40">
+                        <rect x="5" y="10" width="30" height="20" fill="#c0c0c0" stroke="#000" />
+                        <circle cx="10" cy="15" r="1" fill="#0f0" id="modem-led" />
+                        <path d="M5 25 Q 20 5 35 25" fill="none" stroke="#000" stroke-width="1" stroke-dasharray="2,2" />
+                    </svg>
+                </div>
+                <div class="status-text-area" id="status-text">
+                    プロバイダに接続しています...
+                </div>
+            </div>
+            <div class="progress-bar-container" id="progress-container">
+                <div class="progress-bar-fill" id="progress-fill"></div>
+            </div>
+            <div class="btn-group">
+                <button id="cancel-btn" class="win-btn">キャンセル</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connected Window -->
+    <div id="connected-window" class="window hidden">
+        <div class="title-bar">
+            <div class="title-text">
+                <span class="title-icon"></span>
+                接続完了
+            </div>
+            <div class="close-btn">×</div>
+        </div>
+        <div class="content">
+            <div style="font-size: 13px; font-weight: bold;">接続されました。</div>
+            <div class="connected-stats">
+                接続時間: <span id="timer-display">00:00:00</span><br>
+                接続速度: <span id="speed-display">56.0 kbps</span><br>
+                受信: <span id="byte-rx">0</span> バイト<br>
+                送信: <span id="byte-tx">0</span> バイト
+            </div>
+            <div class="btn-group">
+                <button id="disconnect-btn" class="win-btn">切断(D)</button>
+            </div>
+        </div>
+    </div>
+
+    <audio id="dialup-sound" src="sounds/dialup.mp3" preload="auto"></audio>
+
+    <script>
+        const dialupSound = document.getElementById('dialup-sound');
+        const loginWin = document.getElementById('login-window');
+        const connectingWin = document.getElementById('connecting-window');
+        const connectedWin = document.getElementById('connected-window');
+        
+        const statusText = document.getElementById('status-text');
+        const progressContainer = document.getElementById('progress-container');
+        const progressFill = document.getElementById('progress-fill');
+        const modemLed = document.getElementById('modem-led');
+        
+        const timerDisplay = document.getElementById('timer-display');
+        const speedDisplay = document.getElementById('speed-display');
+        const byteRx = document.getElementById('byte-rx');
+        const byteTx = document.getElementById('byte-tx');
+
+        let timerInterval = null;
+        let ledInterval = null;
+        let startTime = 0;
+        const totalDuration = 27000; // 27秒
+
+        const logs = [
+            { time: 0, text: "モデムを初期化しています..." },
+            { time: 3000, text: "03-XXXX-XXXX へダイヤルしています..." },
+            { time: 10000, text: "リモート コンピュータとネゴシエーションを行っています..." },
+            { time: 22000, text: "ユーザー名とパスワードを検証しています..." },
+            { time: 25000, text: "ネットワークにコンピュータを登録しています..." },
+            { time: 27000, text: "接続完了" }
+        ];
+
+        const speeds = ["56,000 bps", "33,600 bps", "28,800 bps", "52,000 bps"];
+
+        async function startConnection() {
+            loginWin.classList.add('hidden');
+            connectingWin.classList.remove('hidden');
+            progressContainer.style.display = 'block';
+
+            // 音声再生
+            dialupSound.currentTime = 0;
+            dialupSound.play();
+
+            // LED点滅アニメーション
+            ledInterval = setInterval(() => {
+                modemLed.style.fill = modemLed.style.fill === 'rgb(0, 255, 0)' ? '#050' : '#0f0';
+            }, 200);
+
+            // 進行状況の管理
+            const start = Date.now();
+            const updateUI = () => {
+                const elapsed = Date.now() - start;
+                const progress = Math.min((elapsed / totalDuration) * 100, 100);
+                progressFill.style.width = progress + "%";
+
+                // テキスト更新
+                const currentLog = logs.reduce((prev, curr) => {
+                    return (elapsed >= curr.time) ? curr : prev;
+                });
+                statusText.innerText = currentLog.text;
+
+                if (elapsed < totalDuration) {
+                    requestAnimationFrame(updateUI);
+                } else {
+                    finishConnection();
+                }
+            };
+            requestAnimationFrame(updateUI);
+        }
+
+        function finishConnection() {
+            clearInterval(ledInterval);
+            connectingWin.classList.add('hidden');
+            connectedWin.classList.remove('hidden');
+            
+            speedDisplay.innerText = speeds[Math.floor(Math.random() * speeds.length)];
+            
+            startTime = Date.now();
+            timerInterval = setInterval(() => {
+                const diff = Math.floor((Date.now() - startTime) / 1000);
+                const h = Math.floor(diff / 3600).toString().padStart(2, '0');
+                const m = Math.floor((diff % 3600) / 60).toString().padStart(2, '0');
+                const s = (diff % 60).toString().padStart(2, '0');
+                timerDisplay.textContent = `${h}:${m}:${s}`;
+                
+                // バイト数も適当に増やす
+                byteRx.innerText = Math.floor(diff * 450 + Math.random() * 100).toLocaleString();
+                byteTx.innerText = Math.floor(diff * 120 + Math.random() * 50).toLocaleString();
+            }, 1000);
+        }
+
+        function disconnect() {
+            clearInterval(timerInterval);
+            clearInterval(ledInterval);
+            dialupSound.pause();
+            dialupSound.currentTime = 0;
+            
+            connectedWin.classList.add('hidden');
+            connectingWin.classList.add('hidden');
+            loginWin.classList.remove('hidden');
+            
+            progressFill.style.width = "0%";
+            timerDisplay.textContent = "00:00:00";
+        }
+
+        document.getElementById('connect-btn').addEventListener('click', startConnection);
+        document.getElementById('cancel-btn').addEventListener('click', disconnect);
+        document.getElementById('disconnect-btn').addEventListener('click', disconnect);
+
+        // PWA
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('service-worker.js');
+            });
+        }
+    </script>
+</body>
+</html>
